@@ -1,0 +1,397 @@
+<!DOCTYPE html>
+<html lang=“zh-TW”>
+<head>
+  <meta charset=“UTF-8">
+  <meta name=“viewport” content=“width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no”>
+  <meta name=“apple-mobile-web-app-capable” content=“yes”>
+  <meta name=“apple-mobile-web-app-status-bar-style” content=“black-translucent”>
+  <title>間歇計時器</title>
+  <style>
+{
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+      font-family: -apple-system, BlinkMacSystemFont, “Segoe UI”, Roboto, “Helvetica Neue”, sans-serif;
+    }
+    body {
+      background-color: #121212;
+      color: #fff;
+      height: 100vh;
+      display: flex;
+      flex-direction: column;
+      overflow: hidden;
+      user-select: none;
+      -webkit-user-select: none;
+    }
+
+    /* 頂部導航列 */
+    .header {
+      height: 70px;
+      padding: 0 20px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      background-color: #121212;
+    }
+    .header-center {
+      text-align: center;
+    }
+    .plan-title {
+      color: #eafb50;
+      font-size: 1.25rem;
+      font-weight: 700;
+    }
+    .total-time {
+      color: #fff;
+      font-size: 1.05rem;
+      font-weight: 600;
+      font-variant-numeric: tabular-nums;
+    }
+    .icon-btn {
+      background: none;
+      border: none;
+      color: #fff;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 6px;
+    }
+    /* 右上角圓形重設按鈕 */
+    .refresh-circle-btn {
+      width: 44px;
+      height: 44px;
+      border-radius: 50%;
+      background: #1f1f1f;
+      border: 1px solid #333;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      cursor: pointer;
+      transition: transform 0.15s ease;
+    }
+    .refresh-circle-btn:active {
+      transform: scale(0.9);
+      background: #2a2a2a;
+    }
+
+    /* 主要計時區塊 (當前階段) */
+    .current-card {
+      flex: 1.3;
+      background-color: #fbf563; /* 明亮黃色 */
+      color: #000;
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+      align-items: center;
+      transition: background-color 0.3s ease;
+    }
+    .current-label {
+      font-size: 3.2rem;
+      font-weight: 900;
+      letter-spacing: 2px;
+      margin-bottom: 5px;
+    }
+    .current-countdown {
+      font-size: 6.8rem;
+      font-weight: 900;
+      line-height: 1;
+      font-variant-numeric: tabular-nums;
+    }
+
+    /* 下一階段區塊 */
+    .next-card {
+      flex: 0.9;
+      background-color: #82f782; /* 淺綠色 */
+      color: #000;
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+      align-items: center;
+      transition: background-color 0.3s ease;
+    }
+    .next-label {
+      font-size: 1.6rem;
+      font-weight: 800;
+    }
+    .next-countdown {
+      font-size: 4rem;
+      font-weight: 900;
+      line-height: 1.1;
+      font-variant-numeric: tabular-nums;
+    }
+
+    /* 底部控制區 */
+    .footer {
+      height: 160px;
+      background-color: #121212;
+      display: flex;
+      justify-content: space-around;
+      align-items: center;
+      padding: 0 10px 20px;
+    }
+    .stat-col {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      min-width: 90px;
+    }
+    .stat-num {
+      font-size: 3.2rem;
+      font-weight: 900;
+      line-height: 1;
+      margin-bottom: 6px;
+    }
+    .stat-blue { color: #60a5fa; }
+    .stat-yellow { color: #fde047; }
+    .stat-text {
+      color: #f4f4f5;
+      font-size: 1.15rem;
+      font-weight: 700;
+    }
+
+    /* 中央播放/暫停大圓鈕 */
+    .play-pause-container {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+    }
+    .play-btn {
+      width: 78px;
+      height: 78px;
+      border-radius: 50%;
+      border: 3.5px solid #facc15;
+      background: transparent;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      cursor: pointer;
+      color: #facc15;
+      transition: transform 0.1s ease, background-color 0.2s;
+    }
+    .play-btn:active {
+      transform: scale(0.92);
+      background: rgba(250, 204, 21, 0.15);
+    }
+    .play-status-text {
+      color: #facc15;
+      font-size: 1.3rem;
+      font-weight: 800;
+      margin-top: 8px;
+    }
+  </style>
+</head>
+<body>
+
+  <!-- 頂部資訊列：重訓、總時間、重設按鈕 -->
+  <div class=“header”>
+    <div style=“width: 44px;“></div> <!-- 左側平衡留白 -->
+    <div class=“header-center”>
+      <div class=“plan-title”>重訓</div>
+      <div class=“total-time” id=“totalTimeDisplay”>00:00</div>
+    </div>
+    <!-- 右上角 Refresh 重設圖示 -->
+    <button class=“refresh-circle-btn” onclick=“resetTimer()” title=“重設“>
+      <svg width=“22” height=“22" viewBox=“0 0 24 24” fill=“none” stroke=“#facc15” stroke-width=“2.5" stroke-linecap=“round” stroke-linejoin=“round”>
+        <path d=“M21.5 2v6h-6M21.34 15.57a10 10 0 1 1-.57-8.38l5.67-5.67”/>
+      </svg>
+    </button>
+  </div>
+
+  <!-- 當前執行中的計時階段 -->
+  <div class=“current-card” id=“currentCard”>
+    <div class=“current-label” id=“currentTitle”>準備</div>
+    <div class=“current-countdown” id=“currentTimeDisplay”>00:05</div>
+  </div>
+
+  <!-- 下一個階段預覽 -->
+  <div class=“next-card” id=“nextCard”>
+    <div class=“next-label” id=“nextTitle”>鍛煉</div>
+    <div class=“next-countdown” id=“nextTimeDisplay”>00:30</div>
+  </div>
+
+  <!-- 底部控制器：剩餘週期、播放/暫停、剩餘循環 -->
+  <div class=“footer”>
+    <!-- 剩餘週期 -->
+    <div class=“stat-col”>
+      <span class=“stat-num stat-blue” id=“remainingCycles”>2</span>
+      <span class=“stat-text”>剩餘週期</span>
+    </div>
+
+    <!-- 開始/暫停同一個圓鈕 -->
+    <div class=“play-pause-container”>
+      <button class=“play-btn” id=“playBtn” onclick=“togglePlayPause()“>
+        <!-- 播放三角形圖示 (預設) -->
+        <svg id=“playIcon” width=“34" height=“34” viewBox=“0 0 24 24" fill=“currentColor”>
+          <polygon points=“6,3 20,12 6,21"/>
+        </svg>
+        <!-- 暫停雙直線圖示 (暫停時切換) -->
+        <svg id=“pauseIcon” width=“32" height=“32” viewBox=“0 0 24 24" fill=“currentColor” style=“display: none;“>
+          <rect x=“5” y=“4" width=“4” height=“16" rx=“1”/>
+          <rect x=“15" y=“4” width=“4" height=“16” rx=“1"/>
+        </svg>
+      </button>
+      <div class=“play-status-text” id=“playStatusLabel”>開始</div>
+    </div>
+
+    <!-- 剩餘循環 -->
+    <div class=“stat-col”>
+      <span class=“stat-num stat-yellow” id=“remainingRounds”>1</span>
+      <span class=“stat-text”>剩餘循環</span>
+    </div>
+  </div>
+
+  <script>
+    // 訓練設定：可依照你的課表自由修改秒數與顏色
+    const plan = {
+      cycles: 2, // 總週期數
+      phases: [
+        { name: “準備“, duration: 5, bg: “#fbf563” },
+        { name: “鍛煉“, duration: 30, bg: “#82f782” },
+        { name: “休息“, duration: 15, bg: “#70d6ff” }
+      ]
+    };
+
+    let currentCycle = 1;
+    let phaseIdx = 0;
+    let remainingMs = plan.phases[0].duration * 1000;
+    let endTime = 0;
+    let timerId = null;
+    let isRunning = false;
+    let wakeLock = null;
+
+    // Web Audio 蜂鳴器
+    const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+    function playBeep(freq, duration) {
+      if (audioCtx.state === ‘suspended’) audioCtx.resume();
+      const osc = audioCtx.createOscillator();
+      const gain = audioCtx.createGain();
+      osc.frequency.setValueAtTime(freq, audioCtx.currentTime);
+      gain.gain.setValueAtTime(0.2, audioCtx.currentTime);
+      gain.gain.exponentialRampToValueAtTime(0.0001, audioCtx.currentTime + duration);
+      osc.connect(gain);
+      gain.connect(audioCtx.destination);
+      osc.start();
+      osc.stop(audioCtx.currentTime + duration);
+    }
+
+    function formatTime(seconds) {
+      const m = Math.floor(seconds / 60).toString().padStart(2, ‘0');
+      const s = (seconds % 60).toString().padStart(2, ‘0');
+      return `${m}:${s}`;
+    }
+
+    function renderUI() {
+      const current = plan.phases[phaseIdx];
+      document.getElementById(‘currentTitle’).innerText = current.name;
+      document.getElementById(‘currentTimeDisplay’).innerText = formatTime(Math.ceil(remainingMs / 1000));
+      document.getElementById(‘currentCard’).style.backgroundColor = current.bg;
+
+      // 下一階段資訊
+      let nextIdx = phaseIdx + 1;
+      let nextCycle = currentCycle;
+      if (nextIdx >= plan.phases.length) {
+        nextIdx = 0;
+        nextCycle++;
+      }
+
+      if (nextCycle > plan.cycles) {
+        document.getElementById(‘nextTitle’).innerText = “結束“;
+        document.getElementById(‘nextTimeDisplay’).innerText = “00:00”;
+        document.getElementById(‘nextCard’).style.backgroundColor = “#555";
+      } else {
+        const next = plan.phases[nextIdx];
+        document.getElementById(‘nextTitle’).innerText = next.name;
+        document.getElementById(‘nextTimeDisplay’).innerText = formatTime(next.duration);
+        document.getElementById(‘nextCard’).style.backgroundColor = next.bg;
+      }
+
+      // 剩餘週期與剩餘循環
+      const remainingCyclesCount = Math.max(0, plan.cycles - currentCycle + 1);
+      const remainingRoundsCount = Math.max(0, plan.phases.length - phaseIdx);
+      document.getElementById(‘remainingCycles’).innerText = remainingCyclesCount;
+      document.getElementById(‘remainingRounds’).innerText = remainingRoundsCount;
+    }
+
+    function tick() {
+      const now = Date.now();
+      remainingMs = Math.max(0, endTime - now);
+
+      // 最後 3 秒短嗶聲
+      if (remainingMs <= 3000 && remainingMs > 0 && Math.abs((remainingMs % 1000) - 950) < 60) {
+        playBeep(520, 0.08);
+      }
+
+      // 階段轉換
+      if (remainingMs <= 0) {
+        playBeep(880, 0.35); // 切換提示長嗶聲
+        phaseIdx++;
+
+        if (phaseIdx >= plan.phases.length) {
+          phaseIdx = 0;
+          currentCycle++;
+        }
+
+        if (currentCycle > plan.cycles) {
+          togglePlayPause(); // 停止
+          alert(“訓練已全數完成！“);
+          resetTimer();
+          return;
+        }
+
+        remainingMs = plan.phases[phaseIdx].duration * 1000;
+        endTime = Date.now() + remainingMs;
+      }
+
+      renderUI();
+    }
+
+    // 開始 / 暫停二合一切換
+    async function togglePlayPause() {
+      if (audioCtx.state === ‘suspended’) audioCtx.resume();
+
+      if (isRunning) {
+        // 執行「暫停」
+        clearInterval(timerId);
+        timerId = null;
+        isRunning = false;
+
+        document.getElementById(‘playIcon’).style.display = “block”;
+        document.getElementById(‘pauseIcon’).style.display = “none”;
+        document.getElementById(‘playStatusLabel’).innerText = “開始“;
+
+        if (wakeLock) {
+          wakeLock.release().then(() => { wakeLock = null; });
+        }
+      } else {
+        // 執行「開始 / 繼續」
+        if (‘wakeLock’ in navigator && !wakeLock) {
+          try { wakeLock = await navigator.wakeLock.request(‘screen’); } catch(e) {}
+        }
+
+        isRunning = true;
+        endTime = Date.now() + remainingMs;
+        timerId = setInterval(tick, 50);
+
+        document.getElementById(‘playIcon’).style.display = “none”;
+        document.getElementById(‘pauseIcon’).style.display = “block”;
+        document.getElementById(‘playStatusLabel’).innerText = “暫停“;
+      }
+    }
+
+    // 右上角圖示重設
+    function resetTimer() {
+      if (isRunning) {
+        togglePlayPause();
+      }
+      currentCycle = 1;
+      phaseIdx = 0;
+      remainingMs = plan.phases[0].duration * 1000;
+      renderUI();
+    }
+
+    // 初始渲染
+    renderUI();
+  </script>
+</body>
+</html>
