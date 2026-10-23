@@ -556,6 +556,8 @@
 
       const gain = audioCtx.createGain();
 
+      osc.type = 'square';
+
       osc.frequency.setValueAtTime(freq, audioCtx.currentTime);
 
       gain.gain.setValueAtTime(1.0, audioCtx.currentTime);
@@ -651,12 +653,12 @@
 
       // 最後 3 秒短嗶聲
       if (remainingMs <= 3000 && remainingMs > 0 && Math.abs((remainingMs % 1000) - 950) < 60) {
-        playBeep(520, 0.08);
+        playBeep(2000, 0.08);
       }
 
       // 階段轉換
       if (remainingMs <= 0) {
-        playBeep(880, 0.35);
+        playBeep(2800, 0.35);
 
         if (phaseIdx === 0) {
           // 準備結束，開始第 1 次鍛煉
