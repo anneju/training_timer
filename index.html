@@ -84,6 +84,22 @@
 
     }
 
+    .plan-select {
+      color: #eafb50;
+      font-size: 1.25rem;
+      font-weight: 700;
+      background: #121212;
+      border: 1px solid #333;
+      border-radius: 6px;
+      padding: 5px 8px;
+      text-align: center;
+      max-width: 190px;
+    }
+    .plan-select:focus {
+      outline: 2px solid #eafb50;
+      outline-offset: 2px;
+    }
+
     .total-time {
 
       color: #fff;
@@ -362,13 +378,13 @@
 
   </style>
 
-<script type="text/javascript" nonce="9950e81cc40a4e9f8b1d5f2d17f" src="//local.adguard.org?ts=1792711014299&amp;type=content-script&amp;dmn=chatgpt.com&amp;url=https%3A%2F%2Fchatgpt.com%2Fbackend-api%2Festuary%2Fcontent%3Fid%3Dfile_000000001234820684ed16ae97647e7b%26ts%3D497975%26p%3Dfs%26cid%3D1%26sig%3Decfb1937cc1e2e235cf9ee55e1e2998ea5dbe7b5a95330830888ee927a499591%26v%3D0&amp;app=com.google.Chrome.helper&amp;css=2&amp;js=1&amp;rel=1&amp;rji=1&amp;sbe=1"></script><script type="text/javascript" nonce="9950e81cc40a4e9f8b1d5f2d17f" src="//local.adguard.org?ts=1792711014299&amp;name=AdGuard%20Extra&amp;type=user-script"></script></head>
+<script type="text/javascript" nonce="9950e81cc40a4e9f8b1d5f2d17f" src="//local.adguard.org?ts=1792711014299&amp;type=content-script&amp;dmn=chatgpt.com&amp;url=https%3A%2F%2Fchatgpt.com%2Fbackend-api%2Festuary%2Fcontent%3Fid%3Dfile_00000000b4b8820685055717f9a20ee3%26fn%3D%25E9%2596%2593%25E6%25AD%2587%25E8%25A8%2588%25E6%2599%2582%25E5%2599%25A8_%25E4%25BF%25AE%25E6%25AD%25A3%25E7%2589%2588.html%26cd%3Dattachment%26ts%3D497976%26p%3Dfs%26cid%3D1%26sig%3D26ea260ad7985b9a286c6da9319f11cb9f0b14dcc5d655ad0440050112a2b4ab%26v%3D0&amp;app=com.google.Chrome.helper&amp;css=2&amp;js=1&amp;rel=1&amp;rji=1&amp;sbe=1"></script><script type="text/javascript" nonce="9950e81cc40a4e9f8b1d5f2d17f" src="//local.adguard.org?ts=1792711014299&amp;name=AdGuard%20Extra&amp;type=user-script"></script></head>
 
 <body>
 
 
 
-<!-- 頂部資訊列：重訓、總時間、重設按鈕 -->
+<!-- 頂部資訊列：全身伸展、總時間、重設按鈕 -->
 
   <div class="header">
 
@@ -376,8 +392,11 @@
 
     <div class="header-center">
 
-      <div class="plan-title">重訓</div>
-
+      <select class="plan-select" id="planSelect" onchange="changePlan()" aria-label="選擇訓練計畫">
+        <option value="全身伸展">全身伸展</option>
+        <option value="小腿伸展">小腿伸展</option>
+        <option value="重量訓練">重量訓練</option>
+      </select>
       <div class="total-time" id="totalTimeDisplay">00:00</div>
 
     </div>
@@ -486,39 +505,44 @@
 
   <script>
 
-    // 訓練設定：可依照你的課表自由修改秒數與顏色
-
-    const plan = {
-
-      cycles: 27, // 鍛煉＋休息的總循環次數
-
-      phases: [
-
-        { name: "準備", duration: 5, bg: "#fbf563" },
-
-        { name: "鍛煉", duration: 30, bg: "#82f782" },
-
-        { name: "休息", duration: 6, bg: "#70d6ff" }
-
-      ]
-
+    // 各訓練計畫設定；目前每個計畫皆設定為 27 次鍛煉＋休息循環
+    const plans = {
+      "全身伸展": {
+        cycles: 27,
+        phases: [
+          { name: "準備", duration: 5, bg: "#fbf563" },
+          { name: "鍛煉", duration: 30, bg: "#82f782" },
+          { name: "休息", duration: 6, bg: "#70d6ff" }
+        ]
+      },
+      "小腿伸展": {
+        cycles: 6,
+        phases: [
+          { name: "準備", duration: 5, bg: "#fbf563" },
+          { name: "鍛煉", duration: 60, bg: "#82f782" },
+          { name: "休息", duration: 5, bg: "#70d6ff" }
+        ]
+      },
+      "重量訓練": {
+        cycles: 2,
+        phases: [
+          { name: "準備", duration: 5, bg: "#fbf563" },
+          { name: "鍛煉", duration: 70, bg: "#82f782" },
+          { name: "休息", duration: 70, bg: "#70d6ff" }
+        ]
+      }
     };
 
-
+    let plan = plans[document.getElementById('planSelect').value];
 
     // 準備只執行一次；之後鍛煉與休息循環 plan.cycles 次
     let currentCycle = 0;
     let phaseIdx = 0; // 0=準備、1=鍛煉、2=休息
     let remainingMs = plan.phases[0].duration * 1000;
     let endTime = 0;
-
     let timerId = null;
-
     let isRunning = false;
-
     let wakeLock = null;
-
-
 
     // Web Audio 蜂鳴器
 
@@ -721,6 +745,27 @@
     }
 
 
+
+    // 切換訓練計畫時，停止目前計時並重設進度
+    function changePlan() {
+      if (timerId !== null) {
+        clearInterval(timerId);
+        timerId = null;
+      }
+      isRunning = false;
+      if (wakeLock) {
+        wakeLock.release().then(() => { wakeLock = null; });
+      }
+      document.getElementById('playIcon').style.display = "block";
+      document.getElementById('pauseIcon').style.display = "none";
+      document.getElementById('playStatusLabel').innerText = "開始";
+
+      plan = plans[document.getElementById('planSelect').value];
+      currentCycle = 0;
+      phaseIdx = 0;
+      remainingMs = plan.phases[0].duration * 1000;
+      renderUI();
+    }
 
     // 右上角圖示重設
 
