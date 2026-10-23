@@ -558,7 +558,7 @@
 
       osc.frequency.setValueAtTime(freq, audioCtx.currentTime);
 
-      gain.gain.setValueAtTime(0.2, audioCtx.currentTime);
+      gain.gain.setValueAtTime(1.0, audioCtx.currentTime);
 
       gain.gain.exponentialRampToValueAtTime(0.0001, audioCtx.currentTime + duration);
 
@@ -596,14 +596,17 @@
       const exerciseSeconds = plan.phases[1].duration;
       const restSeconds = plan.phases[2].duration;
       let totalRemainingMs;
+      // 最後一個週期不含休息
       if (phaseIdx === 0) {
-        totalRemainingMs = remainingMs + plan.cycles * (exerciseSeconds + restSeconds) * 1000;
+        totalRemainingMs = remainingMs + (plan.cycles * (exerciseSeconds + restSeconds) - restSeconds) * 1000;
       } else if (phaseIdx === 1) {
-        totalRemainingMs = remainingMs + restSeconds * 1000
+        const currentRest = currentCycle < plan.cycles ? restSeconds : 0;
+        totalRemainingMs = remainingMs + currentRest * 1000
           + Math.max(0, plan.cycles - currentCycle) * (exerciseSeconds + restSeconds) * 1000;
       } else {
         totalRemainingMs = remainingMs
-          + Math.max(0, plan.cycles - currentCycle) * (exerciseSeconds + restSeconds) * 1000;
+          + Math.max(0, plan.cycles - currentCycle) * (exerciseSeconds + restSeconds) * 1000
+          - restSeconds * 1000;
       }
       document.getElementById('totalTimeDisplay').innerText = formatTime(Math.ceil(totalRemainingMs / 1000));
 
@@ -613,11 +616,13 @@
       if (phaseIdx === 0) {
         nextIdx = 1;
       } else if (phaseIdx === 1) {
-        nextIdx = 2;
-      } else if (currentCycle < plan.cycles) {
-        nextIdx = 1;
+        if (currentCycle < plan.cycles) {
+          nextIdx = 2;
+        } else {
+          hasNext = false; // 最後一次鍛煉後直接結束，不休息
+        }
       } else {
-        hasNext = false;
+        nextIdx = 1;
       }
 
       if (!hasNext) {
@@ -658,18 +663,20 @@
           currentCycle = 1;
           phaseIdx = 1;
         } else if (phaseIdx === 1) {
-          // 鍛煉結束，進入休息
-          phaseIdx = 2;
-        } else if (currentCycle < plan.cycles) {
+          if (currentCycle < plan.cycles) {
+            // 鍛煉結束，進入休息
+            phaseIdx = 2;
+          } else {
+            // 最後一次鍛煉結束，直接完成（不休息）
+            togglePlayPause();
+            alert("訓練已全數完成！");
+            resetTimer();
+            return;
+          }
+        } else {
           // 休息結束，進入下一次鍛煉
           currentCycle++;
           phaseIdx = 1;
-        } else {
-          // 最後一次休息結束，訓練完成
-          togglePlayPause();
-          alert("訓練已全數完成！");
-          resetTimer();
-          return;
         }
 
         remainingMs = plan.phases[phaseIdx].duration * 1000;
