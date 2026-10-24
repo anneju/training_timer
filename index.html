@@ -543,6 +543,7 @@
     let timerId = null;
     let isRunning = false;
     let wakeLock = null;
+    let lastBeepSec = null; // 最近一次已響過倒數嗶聲的秒數
 
     // Web Audio 蜂鳴器
 
@@ -560,7 +561,7 @@
 
       osc.frequency.setValueAtTime(freq, audioCtx.currentTime);
 
-      gain.gain.setValueAtTime(1.0, audioCtx.currentTime);
+      gain.gain.setValueAtTime(0.8, audioCtx.currentTime);
 
       gain.gain.exponentialRampToValueAtTime(0.0001, audioCtx.currentTime + duration);
 
@@ -651,8 +652,10 @@
       const now = Date.now();
       remainingMs = Math.max(0, endTime - now);
 
-      // 最後 3 秒短嗶聲
-      if (remainingMs <= 3000 && remainingMs > 0 && Math.abs((remainingMs % 1000) - 950) < 60) {
+      // 最後 3 秒短嗶聲：每個整數秒只響一次（3、2、1），不依賴 tick 的時間對齊
+      const secLeft = Math.ceil(remainingMs / 1000);
+      if (secLeft >= 1 && secLeft <= 3 && secLeft !== lastBeepSec) {
+        lastBeepSec = secLeft;
         playBeep(2000, 0.08);
       }
 
@@ -683,6 +686,7 @@
 
         remainingMs = plan.phases[phaseIdx].duration * 1000;
         endTime = Date.now() + remainingMs;
+        lastBeepSec = null; // 新階段重新計算倒數嗶聲
       }
 
       renderUI();
@@ -772,6 +776,7 @@
       plan = plans[document.getElementById('planSelect').value];
       currentCycle = 0;
       phaseIdx = 0;
+      lastBeepSec = null;
       remainingMs = plan.phases[0].duration * 1000;
       renderUI();
     }
